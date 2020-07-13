@@ -4,9 +4,6 @@ use std::io::{Read, Write};
 use std::fs;
 use std::thread;
 use std::time::Duration;
-use std::sync::mpsc;
-use std::sync::{Mutex, Arc};
-use std::string::ToString;
 
 use web_server::ThreadPool;
 
