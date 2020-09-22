@@ -2,13 +2,13 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-pub struct Worker {
-    pub id: usize,
-    pub thread: thread::JoinHandle<()>,
+struct Worker {
+    id: usize,
+    thread: thread::JoinHandle<()>,
 }
 
 impl Worker {
-    pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || {
             while let job = receiver.lock().unwrap().recv().unwrap() {
                 println!("Worker {} got a job; excuting.", id);
@@ -23,8 +23,8 @@ pub struct PoolCreationError;
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
 pub struct ThreadPool {
-    pub workers: Vec<Worker>,
-    pub sender: mpsc::Sender<Job>,
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<Job>,
 }
 
 impl ThreadPool {
