@@ -1,18 +1,24 @@
-use std::net::TcpListener;
-use std::net::{TcpStream};
-use std::io::{Read, Write};
 use std::fs;
+use std::io::{Read, Write};
+use std::net::TcpListener;
+use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
-use web_server::ThreadPool;
+use web_server::thread_pool::lib::ThreadPool;
+use web_server::znet::server::Server;
+use web_server::interface::iserver::IServer;
 
 fn main() {
-    server();
+    let s1 = Server::new("[Rust zinx server v0.1]".to_string());
+    s1.serve()
 }
 
 fn server() {
-    let listener = TcpListener::bind("127.0.0.1:8000").unwrap();
+    let host = "127.0.0.1";
+    let port = 8000;
+    println!("server start in port: {}", port);
+    let listener = TcpListener::bind((host, port)).unwrap();
     let pool = if let Ok(pool) = ThreadPool::new(4) {
         pool
     } else {
@@ -20,10 +26,7 @@ fn server() {
     };
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        // thread::spawn(|| {
-        //     handle_connection(stream);
-        // });
-        pool.execute(|| {
+        pool.execute(move || {
             handle_connection(stream);
         })
     }
@@ -43,7 +46,7 @@ fn handle_connection(mut stream: TcpStream) {
         ("HTTP/1.1 200 OK\r\n\r\n", "hello.html")
     } else if buffer.starts_with(sleep) {
         thread::sleep(Duration::from_secs(5));
-        ("HTTP/1.1 200 OK\r\n\r\n", "hello.html")   
+        ("HTTP/1.1 200 OK\r\n\r\n", "hello.html")
     } else {
         ("HTTP/1.1 404 NOT FOUND\r\n\r\n", "404.html")
     };
