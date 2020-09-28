@@ -11,3 +11,5 @@ Rust 编写的基于线程池的示例 web 服务器
 
 ## reference
 * https://kaisery.github.io/trpl-zh-cn/
+* crossbeam crate https://rustcc.cn/article?id=fdcca4e9-7552-43a8-86c2-589011129b82
+* 类似于 crossbeam 的库 https://github.com/stjepang/async-channel
