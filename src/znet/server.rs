@@ -84,4 +84,6 @@ fn handle_connection(mut stream: TcpStream) {
     println!("{}", response);
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
+    // 也可以直接调用 shutdown 方法显式地关闭连接
+    // stream.shutdown(std::net::Shutdown::Both)
 }
