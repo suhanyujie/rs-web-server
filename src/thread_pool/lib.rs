@@ -11,10 +11,14 @@ impl Worker {
     pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || {
             loop {
-                match receiver.lock().unwrap().recv() {
+                let guard1 = receiver.lock().unwrap();
+                match guard1.recv() {
                     Ok(job) => {
                         println!("Worker {} got a job; excuting.", id);
-                        job();
+                        // 确保了 recv 调用过程中持有锁，而在 job.call_box() 调用前锁就被释放
+                        // 只有这样才能允许并发处理多个请求
+                        drop(guard1);
+                        job.call_box();
                     },
                     Err(e) => {
                         panic!(e)
@@ -26,8 +30,18 @@ impl Worker {
     }
 }
 
+pub trait FnBox {
+    fn call_box(self: Box<Self>);
+}
+
+impl<F: FnOnce()> FnBox for F {
+    fn call_box(self: Box<Self>) {
+        (*self)();
+    }
+}
+
 pub struct PoolCreationError;
-type Job = Box<dyn FnOnce() + Send + 'static>;
+type Job = Box<FnBox + Send + 'static>;
 
 pub struct ThreadPool {
     pub workers: Vec<Worker>,
