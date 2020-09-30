@@ -10,9 +10,16 @@ pub struct Worker {
 impl Worker {
     pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || {
-            while let job = receiver.lock().unwrap().recv().unwrap() {
-                println!("Worker {} got a job; excuting.", id);
-                job();
+            loop {
+                match receiver.lock().unwrap().recv() {
+                    Ok(job) => {
+                        println!("Worker {} got a job; excuting.", id);
+                        job();
+                    },
+                    Err(e) => {
+                        panic!(e)
+                    },
+                }
             }
         });
         Worker { id, thread }
@@ -28,6 +35,8 @@ pub struct ThreadPool {
 }
 
 impl ThreadPool {
+    /// 实例化线程池。
+    /// `size<=0` 时没有意义，会触发 panic 
     pub fn new(size: usize) -> Result<ThreadPool, PoolCreationError> {
         assert!(size > 0);
         let (sender, receiver) = mpsc::channel();
@@ -47,5 +56,6 @@ impl ThreadPool {
     {
         let job = Box::new(f);
         self.sender.send(job).unwrap();
+        println!("has sended...");
     }
 }
