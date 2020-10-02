@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4"
+ctrlc = "3.1.6"

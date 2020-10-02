@@ -11,13 +11,15 @@ impl Worker {
     pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
         let thread = thread::spawn(move || {
             loop {
-                let guard1 = receiver.lock().unwrap();
-                match guard1.recv().unwrap() {
+                // let guard1 = receiver.lock().unwrap();
+                let message = receiver.lock().unwrap().recv().unwrap();
+                match message {
                     Message::NewJob(job) => {
                         println!("Worker {} got a job; excuting.", id);
                         // 确保了 recv 调用过程中持有锁，而在 job.call_box() 调用前锁就被释放
                         // 只有这样才能允许并发处理多个请求
-                        drop(guard1);
+                        // drop(guard1);
+                        // 不太清楚的是：在调用 call_box 前，为何 message 会被 drop 掉？ 
                         job.call_box();
                     },
                     Message::Terminate => {
@@ -72,7 +74,6 @@ impl ThreadPool {
     {
         let job = Box::new(f);
         self.sender.send(Message::NewJob(job)).unwrap();
-        println!("has sended...");
     }
 }
 

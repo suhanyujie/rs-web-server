@@ -1,3 +1,5 @@
+extern crate ctrlc;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -10,6 +12,12 @@ use web_server::znet::server::Server;
 use web_server::interface::iserver::IServer;
 
 fn main() {
+    ctrlc::set_handler(move || {
+        println!("received Ctrl+C!");
+        std::process::exit(0);
+    })
+    .expect("Error setting Ctrl-C handler");
+
     let s1 = Server::new("[Rust zinx server v0.1]".to_string());
     s1.serve()
 }
