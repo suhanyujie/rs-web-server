@@ -5,7 +5,7 @@ use std::net::TcpStream;
 
 pub trait IConnection {
     fn start(&mut self);
-    fn stop(&self);
+    fn stop(self);
     fn get_tcp_conn(&self) -> &TcpStream;
     fn get_conn_id(&self) -> u64;
     fn remote_addr(&self) -> std::net::SocketAddr;

@@ -1,5 +1,10 @@
 use crate::interface::iconnection::IConnection;
+use crate::interface::idatapack::IDataPack;
+use crate::interface::imessage::IMessage;
+
 use crate::znet::request::Request;
+use crate::znet::datapack::DataPack;
+use crate::znet::message::Message;
 
 use std::{fmt::Debug, net::TcpStream};
 use std::thread::sleep;
@@ -20,8 +25,9 @@ impl IConnection for Connection {
         // 处理连接
         // (self.handler_func)(self.conn_id, &mut self.conn);
     }
-    fn stop(&self) {
-        
+    // 停止当前连接
+    fn stop(self) {
+        drop(self.conn);
     }
     fn get_tcp_conn(&self) -> &TcpStream {
         return &self.conn;
@@ -70,9 +76,16 @@ impl Connection {
         loop {
             let cnt = conn.read(&mut buffer).unwrap();
             println!("read data from conn {} data is: {:?}", self.conn_id, String::from_utf8_lossy(&buffer[..cnt]));
-            let mut req_data: Vec<u8> = buffer[..cnt].to_vec();
-            let req = Request::new(self, req_data);
-            // todo 实例化 request，然后处理成 message
+            let req_data: Vec<u8> = buffer[..cnt].to_vec();
+            let dp = DataPack::new();
+            // 通过 datapack 将数据处理成一个一个的 message
+            let msg = dp.unpack(req_data);
+            // 把 message 组装成 request 对象
+            // 这里的 msg data 应该被拷贝了一份，待优化
+            let req = Request::new(self, msg.get_data().to_vec());
+            println!("the conn id is: {:?}", req.conn.get_conn_id());
+            // 将 message 再发送回客户端
+            // todo
             sleep(Duration::from_secs(3));
         }
     }
