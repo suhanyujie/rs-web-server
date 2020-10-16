@@ -2,17 +2,22 @@ use crate::interface::iconnection::IConnection;
 use crate::interface::idatapack::IDataPack;
 use crate::interface::imessage::IMessage;
 
-use crate::znet::request::Request;
+use crate::thread_pool::lib::ThreadPool;
 use crate::znet::datapack::DataPack;
 use crate::znet::message::Message;
+use crate::znet::request::Request;
 
-use std::{fmt::Debug, net::TcpStream};
 use std::thread::sleep;
 use std::time::Duration;
-use std::io::Read;
+use std::{fmt::Debug, net::TcpStream};
+use std::{
+    fs,
+    io::{Read, Write},
+};
+use std::sync::{Arc, Mutex};
 
 // 声明一个连接，其中包含
-pub struct Connection{
+pub struct Connection {
     pub conn_id: u64,
     pub conn: TcpStream,
     pub handler_func: fn(u64, &mut TcpStream),
@@ -52,7 +57,11 @@ impl Connection {
         }
     }
 
-    pub fn handle1(conn_id: u64, stream: &mut TcpStream){
+    fn get_mut_conn(&mut self) -> &mut TcpStream {
+        return &mut self.conn;
+    }
+
+    pub fn handle1(conn_id: u64, stream: &mut TcpStream) {
         // 在循环体中 read 客户端过来的数据，再将其写回客户端
         let mut buffer = [0; 1024];
         loop {
@@ -70,23 +79,70 @@ impl Connection {
 
     // 读取请求连接中的数据
     // 将其封装成 request
-    pub fn start_reader(&self){
-        let mut conn = self.get_tcp_conn();
-        let mut buffer = [0 as u8; 1024];
+    pub fn start_reader(&mut self) {
+        let dp = DataPack::new();
+        let mut req_data: Vec<u8> = vec![];
+        let pool = if let Ok(pool) = ThreadPool::new(3) {
+            pool
+        } else {
+            panic!("start_reader new threadpool failed.")
+        };
+        // 事实上，在这个循环中，需要对连接进行读操作，处理完数据后，再将结果写入连接中，因此这里的场景是，需要对一个变量进行读写操作
+        // 因此，这里的场景可以抽象为，在一个循环中，对变量进行读写操作
         loop {
-            let cnt = conn.read(&mut buffer).unwrap();
-            println!("read data from conn {} data is: {:?}", self.conn_id, String::from_utf8_lossy(&buffer[..cnt]));
-            let req_data: Vec<u8> = buffer[..cnt].to_vec();
-            let dp = DataPack::new();
+            // conn.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+            // conn.read(&mut buffer).unwrap();
+            match self.read_content() {
+                (buff, cnt) => {
+                    if cnt == 0 {
+                        continue;
+                    }
+                    println!("server receive byte num is: {}", cnt);
+                    println!("Received content: {}", String::from_utf8_lossy(&buff));
+                    req_data = buff;
+                }
+                _ => continue,
+            }
+
             // 通过 datapack 将数据处理成一个一个的 message
-            let msg = dp.unpack(req_data);
+            let msg = dp.unpack(req_data.clone());
+            let msg = Arc::new(Mutex::new(msg));
             // 把 message 组装成 request 对象
-            // 这里的 msg data 应该被拷贝了一份，待优化
-            let req = Request::new(self, msg.get_data().to_vec());
-            println!("the conn id is: {:?}", req.conn.get_conn_id());
-            // 将 message 再发送回客户端
-            // todo
+            // 通过一个新的线程池，进行处理 req todo
+            // 处理 request，将 message 再发送回客户端
+            let mut req = Request::new(Arc::new(Mutex::new(self)), msg);
+            // println!("the conn id is: {:?}", req.conn.get_conn_id());
+            // (req.conn.handler_func)(req.conn.get_conn_id(), self.get_mut_conn());
+            // todo the trait `Send` is not implemented for `(dyn IMessage + 'static)`
+            // pool.execute(move || {
+            //     drop(req);
+            // });
+            self.write_content();
+
             sleep(Duration::from_secs(3));
         }
     }
+
+    // 从连接中读取数据
+    fn read_content(&self) -> (Vec<u8>, usize) {
+        let mut buffer = [0; 512];
+        let mut cnt: usize = 0;
+        if let Ok(tmp_cnt) = self.get_tcp_conn().read(&mut buffer) {
+            cnt = tmp_cnt;
+            println!("server receive byte num is: {}", cnt);
+            println!("Received content: {}", String::from_utf8_lossy(&buffer));
+        } else {
+        }
+        return (buffer.to_vec(), cnt);
+    }
+
+    // 向连接中写入数据
+    fn write_content(&mut self) {
+        let contents = String::from("hello world...");
+        self.get_mut_conn().write(contents.as_bytes()).unwrap();
+        self.get_mut_conn().flush().unwrap();
+    }
+
+    // 开始向连接中写入数据
+    pub fn start_writer(&self) {}
 }

@@ -20,6 +20,8 @@ fn main() {
 
     let s1 = Server::new("[Rust zinx server v0.1]".to_string());
     s1.serve()
+
+    // server()
 }
 
 fn server() {
@@ -43,6 +45,8 @@ fn server() {
 fn handle_connection(mut stream: TcpStream) {
     let get = b"GET / HTTP/1.1\n";
     let sleep = b"GET /sleep HTTP/1.1\n";
+    let mut stream_bak = stream;
+    let mut stream = &mut stream_bak;
 
     // 缓冲区需要足够大，才能读取到请求的所有内容，从而正常响应客户端
     // 如果不够大，就会导致响应客户端异常

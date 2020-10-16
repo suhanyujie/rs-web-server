@@ -1,20 +1,22 @@
-use crate::interface::irequest::IRequest;
 use crate::interface::iconnection::IConnection;
+use crate::interface::imessage::IMessage;
+use crate::interface::irequest::IRequest;
+
+use std::sync::{Arc, Mutex};
 
 // 实现 IRequest 抽象
-#[derive(Debug)]
-pub struct Request<'a, C: IConnection> {
-    pub conn: &'a C,
-    pub data: Vec<u8>,
+pub struct Request<'a> {
+    pub conn: Arc<Mutex<&'a mut dyn IConnection>>,
+    pub msg: Arc<Mutex<Box<dyn IMessage>>>,
 }
 
-impl<'a, C> IRequest<C> for Request<'a, C>
+impl<'a, C> IRequest<'a, C> for Request<'a>
 where
     C: 'a + IConnection,
 {
     // 获取连接
-    fn get_connection(&self) -> &C  {
-        return self.conn;
+    fn get_connection(&self) -> &Arc<Mutex<&'a mut dyn IConnection>> {
+        return &self.conn;
     }
     // 获取请求消息
     fn get_data(&self) {
@@ -22,14 +24,8 @@ where
     }
 }
 
-impl<'a, C> Request<'a, C> 
-where 
-    C: IConnection
-{
-    pub fn new(conn: &C, data: Vec<u8>) -> Request<C>{
-        Request {
-            conn,
-            data,
-        }
+impl<'a> Request<'a> {
+    pub fn new(conn: Arc<Mutex<&'a mut dyn IConnection>>, msg: Arc<Mutex<Box<dyn IMessage>>>) -> Request {
+        Request { conn, msg }
     }
 }
