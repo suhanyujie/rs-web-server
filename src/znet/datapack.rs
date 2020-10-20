@@ -1,6 +1,7 @@
 use crate::interface::idatapack::IDataPack;
 use crate::interface::imessage::IMessage;
 use crate::znet::message::Message;
+use crate::znet::request::UserMessage;
 
 use std::io::{Write, Read};
 use std::io::BufReader;
@@ -30,7 +31,7 @@ impl IDataPack for DataPack {
     }
 
     // 从字节数组中解包，得到消息
-    fn unpack(&self, binary_data: Vec<u8>) -> Box<dyn IMessage> {
+    fn unpack(&self, binary_data: Vec<u8>) -> Box<UserMessage> {
         let mut msg_reader = BufReader::new(&binary_data[..]);
         let mut msg_len = [0; 4];
         let _ = msg_reader.read_exact(&mut msg_len);

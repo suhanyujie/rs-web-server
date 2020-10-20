@@ -1,5 +1,7 @@
 use crate::interface::imessage::IMessage;
 
+use std::any::Any;
+
 pub struct Message {
     pub msg_id: u32,
     pub msg_len: u32,
@@ -24,6 +26,9 @@ impl IMessage for Message {
     }
     fn get_data(&self) -> &[u8] {
         return &self.data;
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

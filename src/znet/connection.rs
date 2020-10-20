@@ -5,8 +5,11 @@ use crate::interface::imessage::IMessage;
 use crate::thread_pool::lib::ThreadPool;
 use crate::znet::datapack::DataPack;
 use crate::znet::message::Message;
-use crate::znet::request::Request;
+use crate::znet::request::{Request, UserConnection, UserMessage};
 
+use std::sync::mpsc::sync_channel;
+use std::sync::{Arc, Mutex};
+use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
 use std::{fmt::Debug, net::TcpStream};
@@ -14,7 +17,6 @@ use std::{
     fs,
     io::{Read, Write},
 };
-use std::sync::{Arc, Mutex};
 
 // 声明一个连接，其中包含
 pub struct Connection {
@@ -79,7 +81,7 @@ impl Connection {
 
     // 读取请求连接中的数据
     // 将其封装成 request
-    pub fn start_reader(&mut self) {
+    pub fn start_reader<'a>(&'a mut self) {
         let dp = DataPack::new();
         let mut req_data: Vec<u8> = vec![];
         let pool = if let Ok(pool) = ThreadPool::new(3) {
@@ -101,23 +103,24 @@ impl Connection {
                     println!("Received content: {}", String::from_utf8_lossy(&buff));
                     req_data = buff;
                 }
-                _ => continue,
+                _ => {
+                    // 如果没有读到内容，或者 eof，则退出循环 todo
+                    break;
+                },
             }
 
             // 通过 datapack 将数据处理成一个一个的 message
-            let msg = dp.unpack(req_data.clone());
+            let msg = dp.unpack(req_data.clone()); // as Box<UserMessage>
             let msg = Arc::new(Mutex::new(msg));
             // 把 message 组装成 request 对象
             // 通过一个新的线程池，进行处理 req todo
             // 处理 request，将 message 再发送回客户端
             let mut req = Request::new(Arc::new(Mutex::new(self)), msg);
-            // println!("the conn id is: {:?}", req.conn.get_conn_id());
-            // (req.conn.handler_func)(req.conn.get_conn_id(), self.get_mut_conn());
-            // todo the trait `Send` is not implemented for `(dyn IMessage + 'static)`
-            // pool.execute(move || {
-            //     drop(req);
-            // });
-            self.write_content();
+            pool.execute(move || {
+                println!("Work pool exec req job...");
+                // drop(req);
+            });
+            // self.write_content();
 
             sleep(Duration::from_secs(3));
         }
