@@ -12,7 +12,7 @@ fn client() -> std::io::Result<()> {
     let mut index = 1;
     loop {
         let content = String::from("hello...hello...hello...hello...hello...hello...\n");
-        println!("the content is: {}", &content);
+        println!("wait sending content is: {}", &content);
         stream.write(content.as_bytes())?;
         stream.flush()?;
 
@@ -20,8 +20,8 @@ fn client() -> std::io::Result<()> {
         let result = stream.read(&mut line);
         match result {
             Ok(n) => {
-                println!("Received content: {}", String::from_utf8_lossy(&line));
                 println!("Received {} bytes",n);
+                println!("Received content from server: {}", String::from_utf8_lossy(&line));
             },
             _ => {},
         }

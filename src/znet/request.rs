@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 // 取一个别名，作为一种抽象，防止后面需要调整 IConnection、IMessage 的具体实现
 pub type UserConnection = Connection;
 pub type UserMessage = Message;
+pub type UserRequest<'a> = Request<'a>;
 
 
 // 实现 IRequest 抽象

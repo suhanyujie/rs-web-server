@@ -75,4 +75,24 @@ mod tests {
             },
         }
     }
+
+    #[test]
+    fn test_unpack() {
+        let dp = DataPack::new();
+        let b_data = vec![97, 98, 99];
+        let msg = Message::new(1, b_data);
+        let packed_data: Vec<u8>;
+        match dp.pack(msg) {
+            Ok(bytes1) => {
+                packed_data = bytes1.clone();
+                assert_eq!(vec![3, 1, 97, 98, 99], bytes1);
+            },
+            Err(err) => {
+                eprintln!("{}", err);
+                assert!(false);
+            },
+        }
+        // todo
+        // dp.unpack(binary_data)
+    }
 }

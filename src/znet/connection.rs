@@ -1,11 +1,12 @@
 use crate::interface::iconnection::IConnection;
 use crate::interface::idatapack::IDataPack;
 use crate::interface::imessage::IMessage;
+use crate::interface::irequest::IRequest;
 
 use crate::thread_pool::lib::ThreadPool;
 use crate::znet::datapack::DataPack;
 use crate::znet::message::Message;
-use crate::znet::request::{Request, UserConnection, UserMessage};
+use crate::znet::request::{Request, UserConnection, UserMessage, UserRequest};
 
 use std::sync::mpsc::sync_channel;
 use std::sync::{Arc, Mutex};
@@ -22,7 +23,7 @@ use std::{
 pub struct Connection {
     pub conn_id: u64,
     pub conn: TcpStream,
-    pub handler_func: fn(u64, &mut TcpStream),
+    pub handler_func: fn(&mut Self),
 }
 
 impl IConnection for Connection {
@@ -63,7 +64,9 @@ impl Connection {
         return &mut self.conn;
     }
 
-    pub fn handle1(conn_id: u64, stream: &mut TcpStream) {
+    pub fn handle1(&mut self) {
+        let conn_id = self.conn_id;
+        let stream  = &mut self.conn;
         // 在循环体中 read 客户端过来的数据，再将其写回客户端
         let mut buffer = [0; 1024];
         loop {
@@ -81,7 +84,7 @@ impl Connection {
 
     // 读取请求连接中的数据
     // 将其封装成 request
-    pub fn start_reader<'a>(&'a mut self) {
+    pub fn start_reader(&mut self)  {
         let dp = DataPack::new();
         let mut req_data: Vec<u8> = vec![];
         let pool = if let Ok(pool) = ThreadPool::new(3) {
@@ -92,8 +95,6 @@ impl Connection {
         // 事实上，在这个循环中，需要对连接进行读操作，处理完数据后，再将结果写入连接中，因此这里的场景是，需要对一个变量进行读写操作
         // 因此，这里的场景可以抽象为，在一个循环中，对变量进行读写操作
         loop {
-            // conn.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
-            // conn.read(&mut buffer).unwrap();
             match self.read_content() {
                 (buff, cnt) => {
                     if cnt == 0 {
@@ -108,19 +109,14 @@ impl Connection {
                     break;
                 },
             }
-
             // 通过 datapack 将数据处理成一个一个的 message
             let msg = dp.unpack(req_data.clone()); // as Box<UserMessage>
-            let msg = Arc::new(Mutex::new(msg));
             // 把 message 组装成 request 对象
             // 通过一个新的线程池，进行处理 req todo
             // 处理 request，将 message 再发送回客户端
-            let mut req = Request::new(Arc::new(Mutex::new(self)), msg);
-            pool.execute(move || {
-                println!("Work pool exec req job...");
-                // drop(req);
-            });
-            // self.write_content();
+            // let mut req = Request::new(Arc::new(Mutex::new(self)), msg);
+            // start writer immediately
+            self.start_writer(msg);
 
             sleep(Duration::from_secs(3));
         }
@@ -140,12 +136,17 @@ impl Connection {
     }
 
     // 向连接中写入数据
-    fn write_content(&mut self) {
+    fn write_content(&mut self, content: &[u8]) {
         let contents = String::from("hello world...");
-        self.get_mut_conn().write(contents.as_bytes()).unwrap();
+        self.get_mut_conn().write(content).unwrap();
         self.get_mut_conn().flush().unwrap();
     }
 
     // 开始向连接中写入数据
-    pub fn start_writer(&self) {}
+    pub fn start_writer<'a>(&mut self, boxed_msg: Box<UserMessage>) {
+        let data = &(*boxed_msg.data);
+        let contents = String::from("hello world 111 ...");
+        self.write_content(data);
+        (self.handler_func)(self);
+    }
 }
