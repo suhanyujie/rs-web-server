@@ -65,21 +65,9 @@ impl Connection {
     }
 
     pub fn handle1(&mut self) {
-        let conn_id = self.conn_id;
-        let stream  = &mut self.conn;
-        // 在循环体中 read 客户端过来的数据，再将其写回客户端
-        let mut buffer = [0; 1024];
-        loop {
-            buffer = [0; 1024];
-            // 缓冲区需要足够大，才能读取到请求的所有内容，从而正常响应客户端
-            // 如果不够大，就会导致响应客户端异常
-            // stream.read(&mut buffer).unwrap();
-            // println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
-            // stream.write(&buffer).unwrap();
-            // stream.flush().unwrap();
-            sleep(Duration::from_secs(2));
-            println!("this is test from conn {}...", conn_id);
-        }
+        // let conn_id = self.conn_id;
+        // let stream  = &mut self.conn;
+        println!("execute handler: hander1 ...");
     }
 
     // 读取请求连接中的数据
@@ -87,21 +75,13 @@ impl Connection {
     pub fn start_reader(&mut self)  {
         let dp = DataPack::new();
         let mut req_data: Vec<u8> = vec![];
-        let pool = if let Ok(pool) = ThreadPool::new(3) {
-            pool
-        } else {
-            panic!("start_reader new threadpool failed.")
-        };
-        // 事实上，在这个循环中，需要对连接进行读操作，处理完数据后，再将结果写入连接中，因此这里的场景是，需要对一个变量进行读写操作
-        // 因此，这里的场景可以抽象为，在一个循环中，对变量进行读写操作
         loop {
             match self.read_content() {
                 (buff, cnt) => {
                     if cnt == 0 {
                         continue;
                     }
-                    println!("server receive byte num is: {}", cnt);
-                    println!("Received content: {}", String::from_utf8_lossy(&buff));
+                    println!("server receive byte from client num is: {}, content is: {}. ", cnt, String::from_utf8_lossy(&buff));
                     req_data = buff;
                 }
                 _ => {
@@ -111,10 +91,6 @@ impl Connection {
             }
             // 通过 datapack 将数据处理成一个一个的 message
             let msg = dp.unpack(req_data.clone()); // as Box<UserMessage>
-            // 把 message 组装成 request 对象
-            // 通过一个新的线程池，进行处理 req todo
-            // 处理 request，将 message 再发送回客户端
-            // let mut req = Request::new(Arc::new(Mutex::new(self)), msg);
             // start writer immediately
             self.start_writer(msg);
 
@@ -137,16 +113,15 @@ impl Connection {
 
     // 向连接中写入数据
     fn write_content(&mut self, content: &[u8]) {
-        let contents = String::from("hello world...");
         self.get_mut_conn().write(content).unwrap();
         self.get_mut_conn().flush().unwrap();
     }
 
     // 开始向连接中写入数据
     pub fn start_writer<'a>(&mut self, boxed_msg: Box<UserMessage>) {
+        // to do something and write some data into response
         let data = &(*boxed_msg.data);
-        let contents = String::from("hello world 111 ...");
-        self.write_content(data);
         (self.handler_func)(self);
+        self.write_content(data);
     }
 }

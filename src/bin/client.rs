@@ -11,17 +11,16 @@ fn client() -> std::io::Result<()> {
     let mut stream = TcpStream::connect("127.0.0.1:8000")?;
     let mut index = 1;
     loop {
-        let content = String::from("hello...hello...hello...hello...hello...hello...\n");
-        println!("wait sending content is: {}", &content);
+        let content = String::from("hello...he");
+        println!("client sending content is: {}", &content);
         stream.write(content.as_bytes())?;
         stream.flush()?;
 
-        let mut line = [0; 50];
+        let mut line = [0; 512];
         let result = stream.read(&mut line);
         match result {
             Ok(n) => {
-                println!("Received {} bytes",n);
-                println!("Received content from server: {}", String::from_utf8_lossy(&line));
+                println!("Received cnt is: [{}] bytes, content is: [{}]. ", n, String::from_utf8_lossy(&line));
             },
             _ => {},
         }
